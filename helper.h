@@ -12,6 +12,4 @@ bool IsAnyEqual(T&& value, T&& first, Args&&... args) {
           (IsAnyEqual(std::forward<T>(value), std::forward<Args>(args)...)));
 }
 
-
 #endif // HELPER_H
-
