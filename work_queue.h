@@ -37,12 +37,12 @@ public:
   Assign(Fn&& fn, Args&&... args)
   {
     using ReturnType = typename std::result_of<Fn(Args...)>::type;
+    using BoundTask = typename std::packaged_task<ReturnType()>;
 
     // make a type-erased task with all its arguments bound
-    auto task = std::make_unique<Task<ReturnType>>(
-      std::packaged_task<ReturnType()>(
-        std::bind(std::forward<Fn>(fn), std::forward<Args>(args)...)));
-    auto future = task->get_future();
+    auto task = std::make_unique<TypeErased<BoundTask>>(
+      std::bind(std::forward<Fn>(fn), std::forward<Args>(args)...));
+    std::future<ReturnType> future = task->get_future();
 
     { // move the task to the back of the work queue
       std::unique_lock<std::mutex> lock(m_mutex);
@@ -58,23 +58,27 @@ public:
 private:
   inline void Worker()
   {
-    while(!m_shouldStop) {
+    std::unique_lock<std::mutex> lock(m_mutex);
+
+    for(;;) {
       // wait for work
-      std::unique_lock<std::mutex> lock(m_mutex);
       m_cv.wait(lock,
         [this]() -> bool
         {
           return (!m_queue.empty() || m_shouldStop);
         });
 
-      if(!m_queue.empty()) {
+      if(m_shouldStop) {
+        break;
+      } else {
         // get a task from the front of the work queue
         auto task = std::move(m_queue.front());
         m_queue.pop();
-        lock.unlock();
 
-        // execture the task
-        task->exec();
+        // execute the task
+        lock.unlock();
+        (*task)();
+        lock.lock();
       }
     }
   }
@@ -82,29 +86,25 @@ private:
 private:
   struct AbstractTask
   {
-    virtual void exec() = 0;
+    virtual void operator()() = 0;
   };
 
-  template<typename ReturnType>
-  struct Task : public AbstractTask
+  template<typename ErasedType>
+  struct TypeErased
+    : public AbstractTask
+    , public ErasedType
   {
-    Task(std::packaged_task<ReturnType()> &&task)
-      : wrapped(std::move(task))
+    template<typename... Args>
+    TypeErased(Args&&... args)
+      : ErasedType(std::forward<Args>(args)...)
     {}
 
-    virtual ~Task() = default;
+    virtual ~TypeErased() = default;
 
-    std::future<ReturnType> get_future()
+    void operator()() override
     {
-      return wrapped.get_future();
+      (void)ErasedType::operator()();
     }
-
-    void exec() override
-    {
-      wrapped();
-    }
-
-    std::packaged_task<ReturnType()> wrapped;
   };
 
 private:
