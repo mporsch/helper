@@ -1,6 +1,8 @@
 #ifndef HELPER_H
 #define HELPER_H
 
+#include <utility>
+
 template<typename T>
 bool IsAnyEqual(T&&) {
   return false;
@@ -13,3 +15,4 @@ bool IsAnyEqual(T&& value, T&& first, Args&&... args) {
 }
 
 #endif // HELPER_H
+
