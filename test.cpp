@@ -1,9 +1,11 @@
 #include "helper.h"
+#include "tracer.h"
 #include "work_queue.h"
 
 #include <iostream>
 #include <thread>
 #include <string>
+#include <tuple>
 
 int count()
 {
@@ -21,7 +23,13 @@ void sleep(int seconds)
   std::this_thread::sleep_for(std::chrono::seconds(seconds));
 }
 
-int main(int argc, char **argv) {
+int main(int /*argc*/, char **/*argv*/) {
+  std::tuple<char, int, float, Tracer> t1{'a', 2, 0.11f, "tuple_1_element"};
+  std::tuple<char, int, float, Tracer, std::string> t12 = std::tuple_cat(t1, std::tie("text"));
+
+  std::tuple<char, int, float, Tracer> t2{'a', 2, 0.11f, "tuple_2_element"};
+  std::tuple<char, int, float, Tracer, std::string> t21 = std::tuple_cat(std::move(t2), std::tie("text"));
+
   std::cout << "IsAnyEqual(0, 1, 2, 3) " << std::boolalpha
     << "-> " << IsAnyEqual(0, 1, 2, 3) << std::endl;
   std::cout << "IsAnyEqual(4, 4, 5, 6) " << std::boolalpha
