@@ -1,5 +1,6 @@
 #include "helper.h"
 #include "tracer.h"
+#include "print_null.h"
 #include "print_unmangled.h"
 #include "work_queue.h"
 
@@ -125,6 +126,14 @@ namespace print_unmangled {
   }
 } // namespace print_unmangled
 
+namespace print_null {
+  void test()
+  {
+    PrintNull null;
+    null << "silencio" << std::endl;
+  }
+} // namespace print_null
+
 int main(int /*argc*/, char **/*argv*/) {
   tuple::test();
 
@@ -133,6 +142,8 @@ int main(int /*argc*/, char **/*argv*/) {
   work_queue::test();
 
   print_unmangled::test();
+
+  print_null::test();
 
   return EXIT_SUCCESS;
 }
