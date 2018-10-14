@@ -3,22 +3,41 @@
 
 #include <iostream> // for std::cout
 #include <mutex> // for std::mutex
+#include <sstream> // for std::ostringstream
 
 struct PrintUnmangled
 {
-  static std::mutex &mutex();
+  PrintUnmangled() = default;
+
+  ~PrintUnmangled()
+  {
+    std::lock_guard<std::mutex> lock(mutex());
+    std::cout << oss.str();
+  }
 
   template<typename T>
-  friend PrintUnmangled &operator<<(PrintUnmangled &os, T const &value);
+  friend PrintUnmangled &operator<<(PrintUnmangled &pu, T const &value);
+
+  template<typename T>
+  friend PrintUnmangled &operator<<(PrintUnmangled &&pu, T const &value);
 
   using Ioo = std::ostream &(*)(std::ostream &);
-  friend PrintUnmangled &operator<<(PrintUnmangled &os, Ioo const &value);
+  friend PrintUnmangled &operator<<(PrintUnmangled &pu, Ioo const &value);
+  friend PrintUnmangled &operator<<(PrintUnmangled &&pu, Ioo const &value);
 
   using Ios = std::ostream &(*)(std::ios &);
-  friend PrintUnmangled &operator<<(PrintUnmangled &os, Ios const &value);
+  friend PrintUnmangled &operator<<(PrintUnmangled &pu, Ios const &value);
+  friend PrintUnmangled &operator<<(PrintUnmangled &&pu, Ios const &value);
 
   using Iob = std::ostream &(*)(std::ios_base &);
-  friend PrintUnmangled &operator<<(PrintUnmangled &os, Iob const &value);
+  friend PrintUnmangled &operator<<(PrintUnmangled &pu, Iob const &value);
+  friend PrintUnmangled &operator<<(PrintUnmangled &&pu, Iob const &value);
+
+private:
+  static std::mutex &mutex();
+
+private:
+  std::ostringstream oss;
 };
 
 inline std::mutex &PrintUnmangled::mutex()
@@ -28,32 +47,58 @@ inline std::mutex &PrintUnmangled::mutex()
 }
 
 template<typename T>
-PrintUnmangled &operator<<(PrintUnmangled &os, T const &value)
+PrintUnmangled &operator<<(PrintUnmangled &pu, T const &value)
 {
-  std::lock_guard<std::mutex> lock(os.mutex());
-  std::cout << value;
-  return os;
+  pu.oss << value;
+  return pu;
 }
 
-inline PrintUnmangled &operator<<(PrintUnmangled &os, PrintUnmangled::Ioo const &value)
+template<typename T>
+PrintUnmangled &operator<<(PrintUnmangled &&pu, T const &value)
 {
-  std::lock_guard<std::mutex> lock(os.mutex());
-  std::cout << value;
-  return os;
+  return (pu << value);
 }
 
-inline PrintUnmangled &operator<<(PrintUnmangled &os, PrintUnmangled::Ios const &value)
+inline PrintUnmangled &operator<<(PrintUnmangled &pu, PrintUnmangled::Ioo const &value)
 {
-  std::lock_guard<std::mutex> lock(os.mutex());
-  std::cout << value;
-  return os;
+  std::lock_guard<std::mutex> lock(pu.mutex());
+  std::cout << pu.oss.str() << value;
+  pu.oss.str("");
+  pu.oss.clear();
+  return pu;
 }
 
-inline PrintUnmangled &operator<<(PrintUnmangled &os, PrintUnmangled::Iob const &value)
+inline PrintUnmangled &operator<<(PrintUnmangled &&pu, PrintUnmangled::Ioo const &value)
 {
-  std::lock_guard<std::mutex> lock(os.mutex());
-  std::cout << value;
-  return os;
+  return (pu << value);
+}
+
+inline PrintUnmangled &operator<<(PrintUnmangled &pu, PrintUnmangled::Ios const &value)
+{
+  std::lock_guard<std::mutex> lock(pu.mutex());
+  std::cout << pu.oss.str() << value;
+  pu.oss.str("");
+  pu.oss.clear();
+  return pu;
+}
+
+inline PrintUnmangled &operator<<(PrintUnmangled &&pu, PrintUnmangled::Ios const &value)
+{
+  return (pu << value);
+}
+
+inline PrintUnmangled &operator<<(PrintUnmangled &pu, PrintUnmangled::Iob const &value)
+{
+  std::lock_guard<std::mutex> lock(pu.mutex());
+  std::cout << pu.oss.str() << value;
+  pu.oss.str("");
+  pu.oss.clear();
+  return pu;
+}
+
+inline PrintUnmangled &operator<<(PrintUnmangled &&pu, PrintUnmangled::Iob const &value)
+{
+  return (pu << value);
 }
 
 #endif // PRINT_UNMANGLED_H

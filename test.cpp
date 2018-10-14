@@ -107,14 +107,13 @@ namespace work_queue {
 namespace print_unmangled {
   void test()
   {
-    PrintUnmangled pout;
     std::thread threads[4];
     for(auto &&thread : threads) {
       thread = std::thread(
         [&]() -> void
         {
           for(int i = 0; i < 10; ++i) {
-            pout << "individual" << std::endl;
+            PrintUnmangled() << "individual " << "line" << std::endl;
           }
         });
     }
