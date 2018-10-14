@@ -6,7 +6,6 @@ add_executable (helper_test
   helper.h
   work_queue.h
   tracer.h
-  print_unmangled.cpp
   print_unmangled.h
   print_null.h)
 if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")

@@ -6,7 +6,7 @@
 
 struct PrintUnmangled
 {
-  static std::mutex mtx;
+  static std::mutex &mutex();
 
   template<typename T>
   friend PrintUnmangled &operator<<(PrintUnmangled &os, T const &value);
@@ -21,10 +21,37 @@ struct PrintUnmangled
   friend PrintUnmangled &operator<<(PrintUnmangled &os, Iob const &value);
 };
 
+inline std::mutex &PrintUnmangled::mutex()
+{
+  static std::mutex mtx;
+  return mtx;
+}
+
 template<typename T>
 PrintUnmangled &operator<<(PrintUnmangled &os, T const &value)
 {
-  std::lock_guard<std::mutex> lock(os.mtx);
+  std::lock_guard<std::mutex> lock(os.mutex());
+  std::cout << value;
+  return os;
+}
+
+inline PrintUnmangled &operator<<(PrintUnmangled &os, PrintUnmangled::Ioo const &value)
+{
+  std::lock_guard<std::mutex> lock(os.mutex());
+  std::cout << value;
+  return os;
+}
+
+inline PrintUnmangled &operator<<(PrintUnmangled &os, PrintUnmangled::Ios const &value)
+{
+  std::lock_guard<std::mutex> lock(os.mutex());
+  std::cout << value;
+  return os;
+}
+
+inline PrintUnmangled &operator<<(PrintUnmangled &os, PrintUnmangled::Iob const &value)
+{
+  std::lock_guard<std::mutex> lock(os.mutex());
   std::cout << value;
   return os;
 }
