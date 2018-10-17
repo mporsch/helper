@@ -4,10 +4,11 @@ project (helper CXX)
 add_executable (helper_test
   test.cpp
   helper.h
-  work_queue.h
-  tracer.h
+  print_null.h
   print_unmangled.h
-  print_null.h)
+  resource_pool.h
+  tracer.h
+  work_queue.h)
 if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
   target_link_libraries (helper_test pthread)
 endif()

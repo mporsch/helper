@@ -1,7 +1,8 @@
 #include "helper.h"
-#include "tracer.h"
 #include "print_null.h"
 #include "print_unmangled.h"
+#include "resource_pool.h"
+#include "tracer.h"
 #include "work_queue.h"
 
 #include <iostream>
@@ -125,6 +126,27 @@ namespace print_unmangled {
   }
 } // namespace print_unmangled
 
+namespace resource_pool {
+  void test()
+  {
+    ResourcePool<std::string> pool(2U);
+    {
+      auto const ptr = pool.Get("1");
+    }
+    {
+      auto const ptrOne = pool.Get("1");
+      auto const ptrTwo = pool.Get("2");
+    }
+    try {
+      auto const ptrOne = pool.Get("1");
+      auto const ptrTwo = pool.Get("2");
+      auto const ptrThree = pool.Get();
+    } catch(std::exception const &e) {
+      std::cout << "don't be greedy" << std::endl;
+    }
+  }
+} // namespace resource_pool
+
 namespace print_null {
   void test()
   {
@@ -143,6 +165,8 @@ int main(int /*argc*/, char **/*argv*/) {
   print_unmangled::test();
 
   print_null::test();
+
+  resource_pool::test();
 
   return EXIT_SUCCESS;
 }
