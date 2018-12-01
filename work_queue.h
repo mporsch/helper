@@ -86,6 +86,7 @@ private:
 private:
   struct AbstractTask
   {
+    virtual ~AbstractTask() = default;
     virtual void operator()() = 0;
   };
 
@@ -108,10 +109,10 @@ private:
   };
 
 private:
-  bool m_shouldStop;
-  std::thread m_thread;
-  std::queue<std::unique_ptr<AbstractTask>> m_queue;
   std::mutex m_mutex;
+  bool m_shouldStop;  // guarded by m_mutex
+  std::thread m_thread;
+  std::queue<std::unique_ptr<AbstractTask>> m_queue;  // guarded by m_mutex
   std::condition_variable m_cv;
 };
 
