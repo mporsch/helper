@@ -7,6 +7,10 @@
 
 struct PrintUnmangled
 {
+  using Ioo = std::ostream &(*)(std::ostream &);
+  using Ios = std::ostream &(*)(std::ios &);
+  using Iob = std::ostream &(*)(std::ios_base &);
+
   PrintUnmangled(std::ostream &os = std::cout)
     : out(os)
   {
@@ -19,22 +23,11 @@ struct PrintUnmangled
   }
 
   template<typename T>
-  friend PrintUnmangled &operator<<(PrintUnmangled &pu, T const &value);
+  PrintUnmangled &operator<<(T const &value);
 
-  template<typename T>
-  friend PrintUnmangled &operator<<(PrintUnmangled &&pu, T const &value);
-
-  using Ioo = std::ostream &(*)(std::ostream &);
-  friend PrintUnmangled &operator<<(PrintUnmangled &pu, Ioo const &value);
-  friend PrintUnmangled &operator<<(PrintUnmangled &&pu, Ioo const &value);
-
-  using Ios = std::ostream &(*)(std::ios &);
-  friend PrintUnmangled &operator<<(PrintUnmangled &pu, Ios const &value);
-  friend PrintUnmangled &operator<<(PrintUnmangled &&pu, Ios const &value);
-
-  using Iob = std::ostream &(*)(std::ios_base &);
-  friend PrintUnmangled &operator<<(PrintUnmangled &pu, Iob const &value);
-  friend PrintUnmangled &operator<<(PrintUnmangled &&pu, Iob const &value);
+  PrintUnmangled &operator<<(Ioo value);
+  PrintUnmangled &operator<<(Ios value);
+  PrintUnmangled &operator<<(Iob value);
 
 private:
   static std::mutex &mutex();
@@ -44,6 +37,40 @@ private:
   std::ostream &out;
   std::ostringstream oss;
 };
+
+template<typename T>
+PrintUnmangled &PrintUnmangled::operator<<(T const &value)
+{
+  oss << value;
+  return *this;
+}
+
+inline PrintUnmangled &PrintUnmangled::operator<<(Ioo value)
+{
+  {
+    std::lock_guard<std::mutex> lock(mutex());
+    out << oss.str() << value;
+  }
+  return cleared();
+}
+
+inline PrintUnmangled &PrintUnmangled::operator<<(Ios value)
+{
+  {
+    std::lock_guard<std::mutex> lock(mutex());
+    out << oss.str() << value;
+  }
+  return cleared();
+}
+
+inline PrintUnmangled &PrintUnmangled::operator<<(Iob value)
+{
+  {
+    std::lock_guard<std::mutex> lock(mutex());
+    out << oss.str() << value;
+  }
+  return cleared();
+}
 
 inline std::mutex &PrintUnmangled::mutex()
 {
@@ -57,61 +84,6 @@ inline PrintUnmangled &PrintUnmangled::cleared()
   oss.clear();
 
   return *this;
-}
-
-template<typename T>
-PrintUnmangled &operator<<(PrintUnmangled &pu, T const &value)
-{
-  pu.oss << value;
-  return pu;
-}
-
-template<typename T>
-PrintUnmangled &operator<<(PrintUnmangled &&pu, T const &value)
-{
-  return (pu << value);
-}
-
-inline PrintUnmangled &operator<<(PrintUnmangled &pu, PrintUnmangled::Ioo const &value)
-{
-  {
-    std::lock_guard<std::mutex> lock(pu.mutex());
-    pu.out << pu.oss.str() << value;
-  }
-  return pu.cleared();
-}
-
-inline PrintUnmangled &operator<<(PrintUnmangled &&pu, PrintUnmangled::Ioo const &value)
-{
-  return (pu << value);
-}
-
-inline PrintUnmangled &operator<<(PrintUnmangled &pu, PrintUnmangled::Ios const &value)
-{
-  {
-    std::lock_guard<std::mutex> lock(pu.mutex());
-    pu.out << pu.oss.str() << value;
-  }
-  return pu.cleared();
-}
-
-inline PrintUnmangled &operator<<(PrintUnmangled &&pu, PrintUnmangled::Ios const &value)
-{
-  return (pu << value);
-}
-
-inline PrintUnmangled &operator<<(PrintUnmangled &pu, PrintUnmangled::Iob const &value)
-{
-  {
-    std::lock_guard<std::mutex> lock(pu.mutex());
-    pu.out << pu.oss.str() << value;
-  }
-  return pu.cleared();
-}
-
-inline PrintUnmangled &operator<<(PrintUnmangled &&pu, PrintUnmangled::Iob const &value)
-{
-  return (pu << value);
 }
 
 #endif // PRINT_UNMANGLED_H
