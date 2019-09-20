@@ -3,6 +3,7 @@ cmake_minimum_required (VERSION 3.0.0)
 project (helper CXX)
 add_executable (helper_test
   test.cpp
+  fire_and_dont_forget.h
   helper.h
   print_null.h
   print_unmangled.h

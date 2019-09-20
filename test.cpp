@@ -1,3 +1,4 @@
+#include "fire_and_dont_forget.h"
 #include "helper.h"
 #include "print_null.h"
 #include "print_unmangled.h"
@@ -5,9 +6,11 @@
 #include "tracer.h"
 #include "work_queue.h"
 
+#include <cassert>
 #include <iostream>
-#include <thread>
+#include <memory>
 #include <string>
+#include <thread>
 #include <tuple>
 
 namespace tuple {
@@ -39,6 +42,107 @@ namespace is_any_equal {
       << "-> " << IsAnyEqual(std::string("six"), std::string("seven"), std::string("six")) << std::endl;
   }
 } // namespace is_any_equal
+
+namespace fire_and_dont_forget {
+  void work()
+  {
+    std::this_thread::sleep_for(std::chrono::milliseconds(5));
+  }
+
+  void workCopy(int duration)
+  {
+    std::this_thread::sleep_for(std::chrono::milliseconds(duration));
+  }
+
+  void workCRef(const int& duration)
+  {
+    std::this_thread::sleep_for(std::chrono::milliseconds(duration));
+  }
+
+  void workRef(int& duration)
+  {
+    std::this_thread::sleep_for(std::chrono::milliseconds(duration));
+  }
+
+  void workNoCopy(int duration, std::unique_ptr<int> ptr)
+  {
+    (void)ptr;
+    std::this_thread::sleep_for(std::chrono::milliseconds(duration));
+  }
+
+  struct Worker
+  {
+    void work()
+    {
+      fire_and_dont_forget::work();
+    }
+
+    void workCopy(int duration)
+    {
+      fire_and_dont_forget::workCopy(duration);
+    }
+
+    void workCRef(const int& duration)
+    {
+      fire_and_dont_forget::workCRef(duration);
+    }
+
+    void workRef(int& duration)
+    {
+      fire_and_dont_forget::workRef(duration);
+    }
+
+    void workNoCopy(int duration, std::unique_ptr<int> ptr)
+    {
+      fire_and_dont_forget::workNoCopy(duration, std::move(ptr));
+    }
+  };
+
+  void workTraceCopy(Tracer copy)
+  {
+    (void)copy;
+  }
+
+  void workTraceCRef(const Tracer& ref)
+  {
+    (void)ref;
+  }
+
+  void test()
+  {
+    int duration = 5;
+    auto increment = [](int& value) {
+      ++value;
+    };
+
+    {
+      FireAndDontForget storage;
+
+      storage.Dispatch(work);
+      storage.Dispatch(workCopy, 10);
+      storage.Dispatch(workCRef, duration);
+      storage.Dispatch(workCRef, std::cref(duration));
+      storage.Dispatch(workRef, std::ref(duration));
+      storage.Dispatch(workNoCopy, 10, std::make_unique<int>(0));
+
+      Worker worker;
+      storage.Dispatch(&Worker::work, &worker);
+      storage.Dispatch(&Worker::workCopy, &worker, 10);
+      storage.Dispatch(&Worker::workCRef, &worker, duration);
+      storage.Dispatch(&Worker::workCRef, &worker, std::cref(duration));
+      storage.Dispatch(&Worker::workRef, &worker, std::ref(duration));
+      storage.Dispatch(&Worker::workNoCopy, &worker, 10, std::make_unique<int>(0));
+
+      Tracer tracer;
+      storage.Dispatch(workTraceCopy, tracer);
+      storage.Dispatch(workTraceCRef, tracer);
+
+      storage.Dispatch(increment, std::ref(duration));
+    }
+
+    assert(duration > 5);
+  }
+} // namespace fire_and_dont_forget
 
 namespace work_queue {
   int count()
@@ -141,7 +245,7 @@ namespace resource_pool {
       auto const ptrOne = pool.Get("1");
       auto const ptrTwo = pool.Get("2");
       auto const ptrThree = pool.Get();
-    } catch(std::exception const &e) {
+    } catch(std::exception const &) {
       std::cout << "don't be greedy" << std::endl;
     }
   }
@@ -155,10 +259,13 @@ namespace print_null {
   }
 } // namespace print_null
 
-int main(int /*argc*/, char **/*argv*/) {
+int main(int, char **)
+{
   tuple::test();
 
   is_any_equal::test();
+
+  fire_and_dont_forget::test();
 
   work_queue::test();
 
