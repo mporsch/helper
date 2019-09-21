@@ -68,12 +68,18 @@ namespace fire_and_dont_forget_detail {
 
 } // namespace fire_and_dont_forget_detail
 
+/// @brief  safe alternative to fire-and-forget thread dispatch;
+///         thread handles are stored internally until thread joins or
+///         instance destructor blocks until remaining threads have joined
+/// @note  dispatched threads remove themselves from the handle storage to avoid bloat
+/// @note  exceptions encountered within the work loads are silently discarded
 class FireAndDontForget
 {
 public:
+  /// destructor blocking until all threads have joined
   ~FireAndDontForget()
   {
-    // grab to local variable before waiting to avoid deadlock
+    // grab handles to local variable before waiting to avoid deadlock
     decltype(m_handles) handles;
     {
       std::lock_guard<std::mutex> lock(m_mtx);
@@ -86,11 +92,15 @@ public:
     }
   }
 
+  /// @brief  dispatch a work load
+  /// @param  fn  callable in the form of a function, member function or lambda
+  /// @param  args  callable arguments (may be non-copyable)
   template<typename Fn, typename... Args>
   void Dispatch(Fn&& fn, Args&&... args)
   {
     std::lock_guard<std::mutex> lock(m_mtx);
 
+    // start a new thread and store the handle
     // std::decay to handle an argument copy
     m_handles.emplace(
           ToPair(
@@ -114,6 +124,7 @@ private:
   template<typename Fn, typename... Args>
   void Run(Fn fn, Args... args)
   {
+    // process work load and silently discard encountered exceptions
     try {
       (void)fire_and_dont_forget_detail::invoke(
             std::forward<Fn>(fn), std::forward<Args>(args)...);
@@ -123,6 +134,7 @@ private:
       // ignore
     }
 
+    // remove thread handle from the storage to avoid bloat
     RemoveMe();
   }
 
@@ -130,6 +142,7 @@ private:
   {
     std::lock_guard<std::mutex> lock(m_mtx);
 
+    // remove thread handle from the storage
     const auto it = m_handles.find(std::this_thread::get_id());
     if(it != std::end(m_handles)) {
       it->second.detach();
