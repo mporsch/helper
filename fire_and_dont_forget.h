@@ -33,8 +33,11 @@ namespace fire_and_dont_forget_detail {
         return ((*std::forward<T1>(t1)).*f)(std::forward<Args>(args)...);
       }
     } else {
-      static_assert(std::is_member_object_pointer<decltype(f)>::value, "expected member object pointer");
-      static_assert(sizeof...(args) == 0, "expected zero arguments");
+      static_assert(std::is_member_object_pointer<decltype(f)>::value,
+                    "expected member object pointer");
+      static_assert(sizeof...(args) == 0,
+                    "expected zero arguments");
+
       if constexpr(std::is_base_of<T, std::decay_t<T1>>::value) {
         return std::forward<T1>(t1).*f;
       } else if constexpr(is_reference_wrapper_v<std::decay_t<T1>>) {
@@ -52,9 +55,9 @@ namespace fire_and_dont_forget_detail {
   }
 
   template<class F, class... Args>
-  void invoke(F&& f, Args&&... args)
+  decltype(auto) invoke(F&& f, Args&&... args)
   {
-    INVOKE(std::forward<F>(f), std::forward<Args>(args)...);
+    return INVOKE(std::forward<F>(f), std::forward<Args>(args)...);
   }
 
 #else // (defined(_MSC_VER) && (_MSC_VER < 1900)) || (__cplusplus < 201703L)
@@ -91,10 +94,11 @@ public:
     // std::decay to handle an argument copy
     m_handles.emplace(
           ToPair(
-            std::thread(&FireAndDontForget::Run<std::decay_t<Fn>, std::decay_t<Args>...>,
-                        this,
-                        std::forward<Fn>(fn),
-                        std::forward<Args>(args)...)));
+            std::thread(
+              &FireAndDontForget::Run<std::decay_t<Fn>, std::decay_t<Args>...>,
+              this,
+              std::forward<Fn>(fn),
+              std::forward<Args>(args)...)));
   }
 
 private:
@@ -103,7 +107,8 @@ private:
 private:
   Handles::value_type ToPair(std::thread t)
   {
-    return std::make_pair(t.get_id(), std::move(t));
+    auto id = t.get_id();
+    return std::make_pair(std::move(id), std::move(t));
   }
 
   template<typename Fn, typename... Args>
@@ -124,7 +129,8 @@ private:
   void RemoveMe()
   {
     std::lock_guard<std::mutex> lock(m_mtx);
-    auto it = m_handles.find(std::this_thread::get_id());
+
+    const auto it = m_handles.find(std::this_thread::get_id());
     if(it != std::end(m_handles)) {
       it->second.detach();
       m_handles.erase(it);
